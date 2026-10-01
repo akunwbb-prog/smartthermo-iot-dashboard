@@ -1,3 +1,519 @@
-/* Ganti tiga URL berikut sesuai kebutuhan sekolah/jurusan */
-:root { --url-bg-pabrik: url('https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=2200&q=80'); --url-logo-sekolah: ''; --url-logo-jurusan: ''; --cyan:#4de5ff; --purple:#a78bfa; --danger:#ff5577; --glass:rgba(10,20,40,.68); }
-*{box-sizing:border-box}body{margin:0;font-family:Inter,sans-serif;color:#edf7ff;background:linear-gradient(120deg,rgba(4,10,25,.9),rgba(9,25,48,.7)),var(--url-bg-pabrik) center/cover fixed;min-height:100vh}button,input{font:inherit}.glass{background:var(--glass);border:1px solid rgba(130,220,255,.2);box-shadow:0 15px 50px #0005,inset 0 1px #fff1;backdrop-filter:blur(18px);border-radius:20px}.login{min-height:100vh;display:grid;place-items:center;padding:20px}.login-card{width:min(430px,100%);padding:42px}.brand{display:flex;align-items:center;gap:12px}.brand-mark{font-size:2rem;color:var(--cyan);filter:drop-shadow(0 0 12px var(--cyan))}.eyebrow{letter-spacing:.12em;text-transform:uppercase;color:var(--cyan);font-size:.72rem;font-weight:700}.muted{color:#91a9bd}.form-group{margin:18px 0}.form-group label{display:block;margin-bottom:8px;color:#b8cada;font-size:.9rem}.form-group input,.filters input{width:100%;padding:13px 15px;border:1px solid #7090aa55;border-radius:10px;background:#071426aa;color:#fff;outline:none}.form-group input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px #4de5ff22}.primary{border:0;border-radius:10px;padding:13px 18px;color:#04131c;font-weight:800;background:linear-gradient(100deg,var(--cyan),var(--purple));cursor:pointer}.full{width:100%}.error{color:#ff91a5;min-height:20px;font-size:.85rem}.shell{max-width:1450px;margin:auto;padding:20px}.topbar{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:15px 20px;margin-bottom:20px}.logos{display:flex;align-items:center;gap:12px}.logo{width:42px;height:42px;border-radius:10px;object-fit:contain;background:#ffffff12}.actions{display:flex;align-items:center;gap:14px}.logout{background:transparent;border:1px solid #ffffff33;color:#d4e8f4;border-radius:9px;padding:9px 13px;cursor:pointer}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:18px}.card{padding:22px;animation:rise .5s ease both}.span-4{grid-column:span 4}.span-8{grid-column:span 8}.span-12{grid-column:span 12}.card h2{font-size:1rem;margin:0 0 20px}.metric-row{display:flex;gap:14px}.metric{flex:1;background:#ffffff08;border-radius:14px;padding:18px}.metric-value{font-size:2.25rem;font-weight:800;margin-top:8px}.unit{font-size:.8rem;color:#90adc0}.cyan{color:var(--cyan)}.purple{color:var(--purple)}.gauge{width:190px;height:190px;border-radius:50%;margin:8px auto 18px;background:conic-gradient(var(--cyan) 0deg,#28364b 0deg);display:grid;place-items:center;position:relative}.gauge:after{content:'';position:absolute;inset:13px;border-radius:50%;background:#102037}.gauge strong,.gauge small{z-index:1}.gauge strong{font-size:2.2rem}.gauge small{position:absolute;margin-top:65px;color:#91a9bd}.status-list{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.status{display:flex;justify-content:space-between;background:#ffffff08;padding:12px;border-radius:10px}.dot{font-size:.8rem;color:#6df5ae}.off{color:#94a7b5}.alarm{color:var(--danger)}.alarm.on{animation:pulse 1s infinite}.chart-wrap{height:330px}.filters{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}.filters input{width:auto}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:.82rem}th,td{text-align:left;padding:12px 8px;border-bottom:1px solid #ffffff12;white-space:nowrap}th{color:#91a9bd}.setting-grid{display:flex;gap:10px;flex-wrap:wrap}.setting-grid label{display:grid;gap:6px;font-size:.8rem;color:#a9bfce}.setting-grid input{width:125px}.toast{position:fixed;bottom:25px;right:25px;padding:14px 18px;border-radius:10px;background:#132d43;color:#fff;display:none}.toast.show{display:block}@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}@keyframes pulse{50%{text-shadow:0 0 20px var(--danger)}}@media(max-width:900px){.span-4,.span-8{grid-column:span 12}.topbar{align-items:flex-start}.actions{flex-wrap:wrap;justify-content:flex-end}.metric-value{font-size:1.8rem}}@media(max-width:520px){.shell{padding:10px}.topbar{padding:13px}.brand h1{font-size:1.1rem}.logo{display:none}.metric-row{flex-direction:column}.login-card{padding:28px}}
+const $ = (selector) => document.querySelector(selector);
+let chart;
+let latestData = null;
+
+const fmt = (value) => (value ? new Date(value).toLocaleString('id-ID') : '-');
+
+function renderLogin() {
+  $('#app').innerHTML = `
+    <main class="login-page">
+      <div class="login-shell glass-panel">
+        <div class="login-visual">
+          <div class="brand-mark">◉</div>
+          <div class="eyebrow">Industrial IoT Suite</div>
+          <h1>SmartThermo</h1>
+          <p>Smart Industrial Temperature & Humidity Monitoring System</p>
+          <div class="mini-grid">
+            <div><span>24/7</span><small>Monitoring</small></div>
+            <div><span>99.9%</span><small>Uptime</small></div>
+            <div><span>3</span><small>Alarm modes</small></div>
+          </div>
+        </div>
+
+        <div class="login-form-wrap">
+          <div class="login-header">
+            <div class="eyebrow accent">Secure Access</div>
+            <h2>Masuk ke Dashboard</h2>
+          </div>
+
+          <form id="loginForm" class="login-form">
+            <label class="field">
+              <span>Username</span>
+              <input name="username" autocomplete="username" placeholder="admin" required>
+            </label>
+
+            <label class="field">
+              <span>Password</span>
+              <input name="password" type="password" autocomplete="current-password" placeholder="••••••••" required>
+            </label>
+
+            <div id="loginError" class="error-text"></div>
+
+            <button type="submit" class="primary-btn strong-btn">Login</button>
+          </form>
+        </div>
+      </div>
+    </main>
+  `;
+
+  $('#loginForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const payload = Object.fromEntries(form.entries());
+
+    const response = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (response.ok) {
+      renderDashboard();
+      return;
+    }
+
+    const error = await response.json();
+    $('#loginError').textContent = error.error || 'Login gagal. Coba lagi.';
+  });
+}
+
+function renderDashboard() {
+  $('#app').innerHTML = `
+    <div class="page-shell">
+      <header class="topbar glass-panel">
+        <div class="topbar-left">
+          <div class="logo-slot logo-school" aria-label="Logo Sekolah"></div>
+
+          <div class="brand-block">
+            <div class="eyebrow accent">Industrial IoT</div>
+            <h1>SmartThermo</h1>
+            <p>Smart Industrial Temperature & Humidity Monitoring System</p>
+          </div>
+
+          <div class="logo-slot logo-major" aria-label="Logo Jurusan"></div>
+        </div>
+
+        <div class="topbar-right">
+          <div class="last-update">
+            <span class="label">Last update</span>
+            <strong id="lastUpdated">-</strong>
+          </div>
+          <button id="logoutBtn" class="ghost-btn">Logout</button>
+        </div>
+      </header>
+
+      <main class="dashboard-grid">
+        <section class="widget glass-panel room-panel">
+          <div class="widget-header">
+            <div>
+              <span class="eyebrow small">Environment</span>
+              <h3>Room Monitoring</h3>
+            </div>
+            <span class="status-pill live">LIVE</span>
+          </div>
+
+          <div class="metrics-row">
+            <div class="metric-box">
+              <span class="metric-label">Temp Ruangan</span>
+              <div class="metric-value cyan" id="roomTemp">-</div>
+              <small>°C</small>
+            </div>
+
+            <div class="metric-box">
+              <span class="metric-label">Humidity</span>
+              <div class="metric-value purple" id="humidity">-</div>
+              <small>% RH</small>
+            </div>
+          </div>
+        </section>
+
+        <section class="widget glass-panel machine-panel">
+          <div class="widget-header">
+            <div>
+              <span class="eyebrow small">Precision</span>
+              <h3>Machine Sensor</h3>
+            </div>
+            <span id="machineStateBadge" class="status-pill idle">NORMAL</span>
+          </div>
+
+          <div class="gauge-card">
+            <div class="gauge-ring" id="gaugeRing">
+              <div class="gauge-center">
+                <strong id="machineTemp">-</strong>
+                <small>°C</small>
+              </div>
+            </div>
+            <p id="machineStateText">Waiting for sensor data</p>
+          </div>
+        </section>
+
+        <section class="widget glass-panel system-panel">
+          <div class="widget-header">
+            <div>
+              <span class="eyebrow small">Actuators</span>
+              <h3>System Status</h3>
+            </div>
+          </div>
+
+          <div class="status-list">
+            <div class="status-row">
+              <span>Kipas Ruangan</span>
+              <b id="roomFan" class="signal off">OFF</b>
+            </div>
+            <div class="status-row">
+              <span>Kipas Mesin</span>
+              <b id="machineFan" class="signal off">OFF</b>
+            </div>
+            <div class="status-row">
+              <span>Buzzer Alarm</span>
+              <b id="buzzer" class="signal off">MUTE</b>
+            </div>
+            <div class="status-row">
+              <span>Modbus RTU</span>
+              <b id="modbus" class="signal neutral">-</b>
+            </div>
+          </div>
+        </section>
+
+        <section class="widget glass-panel trend-panel">
+          <div class="widget-header">
+            <div>
+              <span class="eyebrow small">Analytics</span>
+              <h3>Trend Chart</h3>
+            </div>
+
+            <div class="range-group">
+              <button class="range-btn active" data-range="100">Live</button>
+              <button class="range-btn" data-range="50">50</button>
+              <button class="range-btn" data-range="200">200</button>
+            </div>
+          </div>
+
+          <div class="chart-wrap">
+            <canvas id="trendChart"></canvas>
+          </div>
+        </section>
+
+        <section class="widget glass-panel settings-panel">
+          <div class="widget-header">
+            <div>
+              <span class="eyebrow small">Control</span>
+              <h3>Threshold Settings</h3>
+            </div>
+          </div>
+
+          <form id="settingsForm" class="settings-form">
+            <div class="field-grid">
+              <label>
+                <span>Kipas Ruangan</span>
+                <input name="roomFanOn" type="number" step="0.1" min="0" max="100">
+              </label>
+
+              <label>
+                <span>Kipas Mesin</span>
+                <input name="machineFanOn" type="number" step="0.1" min="0" max="150">
+              </label>
+
+              <label>
+                <span>Alarm Danger</span>
+                <input name="danger" type="number" step="0.1" min="0" max="150">
+              </label>
+            </div>
+
+            <button type="submit" class="primary-btn">Save Threshold</button>
+          </form>
+        </section>
+
+        <section class="widget glass-panel history-panel">
+          <div class="widget-header history-header">
+            <div>
+              <span class="eyebrow small">History</span>
+              <h3>Sensor Log</h3>
+            </div>
+
+            <div class="history-tools">
+              <input id="searchInput" type="text" placeholder="Search status...">
+              <input id="dateFilter" type="date">
+              <button id="exportCsv" class="ghost-btn">Export CSV</button>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Mesin</th>
+                  <th>Ruangan</th>
+                  <th>Humidity</th>
+                  <th>Kipas</th>
+                  <th>Buzzer</th>
+                  <th>Modbus</th>
+                </tr>
+              </thead>
+              <tbody id="historyBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="toast" class="toast"></div>
+  `;
+
+  $('#logoutBtn').addEventListener('click', async () => {
+    await fetch('/api/logout', { method: 'POST' });
+    renderLogin();
+  });
+
+  $('#settingsForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const payload = Object.fromEntries(form.entries());
+
+    const response = await fetch('/api/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await response.json();
+    if (response.ok) {
+      showToast('Threshold berhasil disimpan.');
+      loadDashboard();
+    } else {
+      showToast(result.error || 'Gagal menyimpan threshold');
+    }
+  });
+
+  $('#exportCsv').addEventListener('click', exportCsv);
+  $('#searchInput').addEventListener('input', loadHistory);
+  $('#dateFilter').addEventListener('change', loadHistory);
+  document.querySelectorAll('.range-btn').forEach((button) => {
+    button.addEventListener('click', () => {
+      document.querySelectorAll('.range-btn').forEach((el) => el.classList.toggle('active', el === button));
+      loadHistory(Number(button.dataset.range));
+    });
+  });
+
+  loadDashboard();
+}
+
+async function loadDashboard() {
+  const response = await fetch('/api/status');
+
+  if (response.status === 401) {
+    renderLogin();
+    return;
+  }
+
+  const data = await response.json();
+  latestData = data.latest;
+
+  const machineTemp = Number(latestData.temp_mesin || 0);
+  const roomTemp = Number(latestData.temp_ruangan || 0);
+  const humidity = Number(latestData.hum_ruangan || 0);
+  const dangerLevel = Number(data.settings.danger || 80);
+  const fanRoomThreshold = Number(data.settings.roomFanOn || 30);
+  const fanMachineThreshold = Number(data.settings.machineFanOn || 60);
+
+  $('#roomTemp').textContent = roomTemp.toFixed(1);
+  $('#humidity').textContent = humidity.toFixed(1);
+  $('#machineTemp').textContent = machineTemp.toFixed(1);
+  $('#lastUpdated').textContent = fmt(latestData.received_at);
+
+  const roomFanState = Number(latestData.kipas_ruangan || 0) === 1;
+  const machineFanState = Number(latestData.kipas_mesin || 0) === 1;
+  const buzzerState = Number(latestData.buzzer || 0) === 1;
+
+  setSignal('#roomFan', roomFanState, 'ON', 'OFF');
+  setSignal('#machineFan', machineFanState, 'ON', 'OFF');
+  setSignal('#buzzer', buzzerState, 'ACTIVE', 'MUTE');
+  $('#modbus').textContent = latestData.modbus_status || 'UNKNOWN';
+  $('#modbus').className = `signal ${latestData.modbus_status === 'OK' ? 'good' : 'neutral'}`;
+
+  const ringValue = Math.max(0, Math.min(360, (machineTemp / 120) * 360));
+  const ringColor = machineTemp >= dangerLevel ? '#ff5e7d' : machineTemp >= fanMachineThreshold ? '#ffb454' : '#62e4ff';
+  $('#gaugeRing').style.background = `conic-gradient(${ringColor} ${ringValue}deg, rgba(255,255,255,0.08) ${ringValue}deg 360deg)`;
+
+  if (machineTemp >= dangerLevel) {
+    $('#machineStateBadge').textContent = 'DANGER';
+    $('#machineStateBadge').className = 'status-pill danger';
+    $('#machineStateText').textContent = 'Overheat detected';
+  } else if (machineTemp >= fanMachineThreshold) {
+    $('#machineStateBadge').textContent = 'WARNING';
+    $('#machineStateBadge').className = 'status-pill warning';
+    $('#machineStateText').textContent = 'Cooling fan is active';
+  } else {
+    $('#machineStateBadge').textContent = 'NORMAL';
+    $('#machineStateBadge').className = 'status-pill idle';
+    $('#machineStateText').textContent = 'Temperature stable';
+  }
+
+  if (roomTemp >= fanRoomThreshold) {
+    $('#roomTemp').classList.add('alert');
+  } else {
+    $('#roomTemp').classList.remove('alert');
+  }
+
+  Object.entries(data.settings).forEach(([key, value]) => {
+    const input = $(`[name="${key}"]`);
+    if (input) input.value = value;
+  });
+
+  loadHistory(Number(document.querySelector('.range-btn.active')?.dataset.range || 100));
+}
+
+function setSignal(selector, isOn, activeText, inactiveText) {
+  const element = $(selector);
+  if (!element) return;
+
+  element.textContent = isOn ? activeText : inactiveText;
+  element.className = `signal ${isOn ? 'good' : 'off'}`;
+
+  if (selector === '#buzzer' && isOn) {
+    element.classList.add('alarm-blink');
+  } else {
+    element.classList.remove('alarm-blink');
+  }
+}
+
+async function loadHistory(limit = 100) {
+  const response = await fetch(`/api/history?limit=${limit}`);
+  if (!response.ok) return;
+
+  const data = await response.json();
+  const rows = data.rows || [];
+  const query = ($('#searchInput')?.value || '').toLowerCase();
+  const date = $('#dateFilter')?.value || '';
+
+  const filtered = rows.filter((item) => {
+    const matchQuery = !query || `${item.modbus_status} ${item.kipas_ruangan} ${item.kipas_mesin}`.toLowerCase().includes(query);
+    const matchDate = !date || (item.received_at || '').startsWith(date);
+    return matchQuery && matchDate;
+  });
+
+  const tbody = $('#historyBody');
+  tbody.innerHTML = filtered.map((item) => `
+    <tr>
+      <td>${fmt(item.received_at)}</td>
+      <td>${Number(item.temp_mesin || 0).toFixed(1)}</td>
+      <td>${Number(item.temp_ruangan || 0).toFixed(1)}</td>
+      <td>${Number(item.hum_ruangan || 0).toFixed(1)}</td>
+      <td>${Number(item.kipas_ruangan || 0) ? 'ON' : 'OFF'} / ${Number(item.kipas_mesin || 0) ? 'ON' : 'OFF'}</td>
+      <td>${Number(item.buzzer || 0) ? 'ACTIVE' : 'MUTE'}</td>
+      <td>${item.modbus_status || '-'}</td>
+    </tr>
+  `).join('');
+
+  drawChart(filtered.slice().reverse());
+}
+
+function drawChart(rows) {
+  const ctx = $('#trendChart');
+  if (!ctx) return;
+
+  if (chart) chart.destroy();
+
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: rows.map((item) => new Date(item.received_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })),
+      datasets: [
+        {
+          label: 'Mesin °C',
+          data: rows.map((item) => Number(item.temp_mesin || 0)),
+          borderColor: '#ffb454',
+          backgroundColor: 'rgba(255,180,84,0.15)',
+          tension: 0.35,
+          fill: false,
+          borderWidth: 2.5,
+          pointRadius: 0
+        },
+        {
+          label: 'Ruangan °C',
+          data: rows.map((item) => Number(item.temp_ruangan || 0)),
+          borderColor: '#62e4ff',
+          backgroundColor: 'rgba(98,228,255,0.12)',
+          tension: 0.35,
+          fill: false,
+          borderWidth: 2.5,
+          pointRadius: 0
+        },
+        {
+          label: 'Humidity %',
+          data: rows.map((item) => Number(item.hum_ruangan || 0)),
+          borderColor: '#b38cff',
+          backgroundColor: 'rgba(179,140,255,0.12)',
+          tension: 0.35,
+          fill: false,
+          borderWidth: 2.5,
+          pointRadius: 0
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          labels: {
+            color: '#dfeaf4',
+            usePointStyle: true,
+            boxWidth: 10
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#9aaeca' },
+          grid: { color: 'rgba(255,255,255,0.06)' }
+        },
+        y: {
+          ticks: { color: '#9aaeca' },
+          grid: { color: 'rgba(255,255,255,0.06)' }
+        }
+      }
+    }
+  });
+}
+
+async function exportCsv() {
+  const response = await fetch('/api/history?limit=1000');
+  const data = await response.json();
+  const rows = data.rows || [];
+
+  const header = ['received_at', 'temp_mesin', 'temp_ruangan', 'hum_ruangan', 'kipas_ruangan', 'kipas_mesin', 'buzzer', 'modbus_status'];
+  const csvRows = rows.map((item) => [
+    item.received_at || '',
+    item.temp_mesin || '',
+    item.temp_ruangan || '',
+    item.hum_ruangan || '',
+    item.kipas_ruangan || '',
+    item.kipas_mesin || '',
+    item.buzzer || '',
+    item.modbus_status || ''
+  ]);
+
+  const csvContent = [header, ...csvRows]
+    .map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(','))
+    .join('\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'smartthermo-history.csv';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(link.href);
+}
+
+function showToast(message) {
+  const toast = $('#toast');
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.add('show');
+  clearTimeout(showToast.timeoutId);
+  showToast.timeoutId = setTimeout(() => toast.classList.remove('show'), 2400);
+}
+
+fetch('/api/me')
+  .then((response) => (response.ok ? renderDashboard() : renderLogin()))
+  .catch(() => renderLogin());
+
+window.addEventListener('DOMContentLoaded', () => {
+  document.body.classList.add('ready');
+});
+
