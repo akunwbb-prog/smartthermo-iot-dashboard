@@ -1,11 +1,662 @@
-const $ = s => document.querySelector(s); let chart; let latest; const fmt = d => d ? new Date(d).toLocaleString('id-ID') : '-';
-function renderLogin(){ $('#app').innerHTML = `<main class="login"><section class="glass login-card"><div class="brand"><span class="brand-mark">◉</span><div><div class="eyebrow">Industrial IoT</div><h1>SmartThermo</h1></div></div><p class="muted">Smart Industrial Temperature & Humidity Monitoring System</p><form id="login"><div class="form-group"><label>Username</label><input name="username" autocomplete="username" required></div><div class="form-group"><label>Password</label><input name="password" type="password" autocomplete="current-password" required></div><div class="error" id="error"></div><button class="primary full">Masuk ke Dashboard</button></form></section></main>`; $('#login').onsubmit=async e=>{e.preventDefault();const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.fromEntries(new FormData(e.target)))});if(r.ok) renderDashboard();else $('#error').textContent=(await r.json()).error}; }
-function renderDashboard(){ $('#app').innerHTML=`<main class="shell"><header class="glass topbar"><div class="logos"><img class="logo school" alt="Logo Sekolah"><div class="brand"><span class="brand-mark">◉</span><div><div class="eyebrow">Industrial IoT Dashboard</div><h1>SmartThermo</h1></div></div><img class="logo department" alt="Logo Jurusan"></div><div class="actions"><span id="last" class="muted">Terakhir: -</span><button id="logout" class="logout">Keluar</button></div></header><section class="grid"><article class="glass card span-4"><h2>🌡️ Kondisi Ruangan · DHT22</h2><div class="metric-row"><div class="metric"><div class="muted">Suhu</div><div class="metric-value cyan" id="roomTemp">-</div><span class="unit">°C</span></div><div class="metric"><div class="muted">Kelembaban</div><div class="metric-value purple" id="humidity">-</div><span class="unit">% RH</span></div></div></article><article class="glass card span-4"><h2>⚙️ Suhu Mesin · PT100</h2><div class="gauge" id="gauge"><strong id="machineTemp">-</strong><small>°C</small></div><div id="machineState" class="muted" style="text-align:center">Menunggu data</div></article><article class="glass card span-4"><h2>⚡ Status Sistem</h2><div class="status-list"><div class="status">Kipas Ruangan <b id="roomFan" class="dot">OFF</b></div><div class="status">Kipas Mesin <b id="machineFan" class="dot">OFF</b></div><div class="status">Buzzer <b id="buzzer" class="dot">MUTE</b></div><div class="status">RS485 Modbus <b id="modbus" class="dot">-</b></div></div></article><article class="glass card span-8"><h2>📈 Trend Real-time</h2><div class="filters"><button class="primary" data-range="100">Live</button><button class="logout" data-range="50">50 Data</button><button class="logout" id="refresh">Refresh</button></div><div class="chart-wrap"><canvas id="trend"></canvas></div></article><article class="glass card span-4"><h2>🎚️ Ambang Batas</h2><form id="settings" class="setting-grid"><label>Kipas Ruangan °C<input name="roomFanOn" type="number" step=".1"></label><label>Kipas Mesin °C<input name="machineFanOn" type="number" step=".1"></label><label>Danger °C<input name="danger" type="number" step=".1"></label><button class="primary">Simpan</button></form><p class="muted">Nilai tersimpan di server dan dikirim bersama respons API IoT.</p></article><article class="glass card span-12"><h2>🗃️ Riwayat Sensor <button id="csv" class="logout" style="float:right">Export CSV</button></h2><div class="filters"><input id="search" placeholder="Cari status..."><input id="date" type="date"></div><div class="table-wrap"><table><thead><tr><th>Waktu</th><th>Mesin °C</th><th>Ruangan °C</th><th>RH %</th><th>Kipas R/M</th><th>Buzzer</th><th>Modbus</th></tr></thead><tbody id="history"></tbody></table></div></article></section></main><div id="toast" class="toast"></div>`; document.querySelector('.school').src=''; document.querySelector('.department').src=''; $('#logout').onclick=async()=>{await fetch('/api/logout',{method:'POST'});renderLogin()}; $('#refresh').onclick=load; $('#settings').onsubmit=saveSettings; $('#csv').onclick=exportCsv; $('#search').oninput=loadHistory; $('#date').onchange=loadHistory; document.querySelectorAll('[data-range]').forEach(b=>b.onclick=()=>loadHistory(Number(b.dataset.range))); load(); }
-async function load(){const r=await fetch('/api/status');if(r.status===401)return renderLogin();const d=await r.json();latest=d.latest;$('#roomTemp').textContent=Number(latest.temp_ruangan).toFixed(1);$('#humidity').textContent=Number(latest.hum_ruangan).toFixed(1);$('#machineTemp').textContent=Number(latest.temp_mesin).toFixed(1);$('#last').textContent='Terakhir: '+fmt(latest.received_at);setState('roomFan',latest.kipas_ruangan,'ON','OFF');setState('machineFan',latest.kipas_mesin,'ON','OFF');setState('buzzer',latest.buzzer,'ACTIVE','MUTE');$('#buzzer').classList.toggle('alarm',!!latest.buzzer);$('#buzzer').classList.toggle('on',!!latest.buzzer);$('#modbus').textContent=latest.modbus_status;const deg=Math.min(360,Math.max(0,latest.temp_mesin/120*360));$('#gauge').style.background=`conic-gradient(${latest.temp_mesin>=d.settings.danger?'#ff5577':'#4de5ff'} ${deg}deg,#28364b ${deg}deg)`;$('#machineState').textContent=latest.temp_mesin>=d.settings.danger?'DANGER · OVERHEAT':latest.temp_mesin>=d.settings.machineFanOn?'WARNING · Pendinginan aktif':'NORMAL';['roomFanOn','machineFanOn','danger'].forEach(k=>{$(`[name=${k}]`).value=d.settings[k]});loadHistory();}
-function setState(id,on,a,b){const e=$('#'+id);e.textContent=on?a:b;e.className=on?'dot':'dot off'}
-async function loadHistory(limit=100){const r=await fetch('/api/history?limit='+limit);if(!r.ok)return;const rows=(await r.json()).rows;const q=($('#search')?.value||'').toLowerCase(),date=$('#date')?.value;const filtered=rows.filter(x=>(!q||x.modbus_status.toLowerCase().includes(q))&&(!date||x.received_at.startsWith(date)));$('#history').innerHTML=filtered.map(x=>`<tr><td>${fmt(x.received_at)}</td><td>${x.temp_mesin.toFixed(1)}</td><td>${x.temp_ruangan.toFixed(1)}</td><td>${x.hum_ruangan.toFixed(1)}</td><td>${x.kipas_ruangan?'ON':'OFF'} / ${x.kipas_mesin?'ON':'OFF'}</td><td>${x.buzzer?'ACTIVE':'MUTE'}</td><td>${x.modbus_status}</td></tr>`).join('');draw(rows.slice().reverse());}
-function draw(rows){const ctx=$('#trend');if(!ctx)return;if(chart)chart.destroy();chart=new Chart(ctx,{type:'line',data:{labels:rows.map(x=>new Date(x.received_at).toLocaleTimeString('id-ID')),datasets:[{label:'Mesin °C',data:rows.map(x=>x.temp_mesin),borderColor:'#ffca70',tension:.35},{label:'Ruangan °C',data:rows.map(x=>x.temp_ruangan),borderColor:'#4de5ff',tension:.35},{label:'Kelembaban %',data:rows.map(x=>x.hum_ruangan),borderColor:'#a78bfa',tension:.35}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#d7eafa'}}},scales:{x:{ticks:{color:'#91a9bd'}},y:{ticks:{color:'#91a9bd'}}}}});}
-async function saveSettings(e){e.preventDefault();const r=await fetch('/api/settings',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.fromEntries(new FormData(e.target)))});showToast(r.ok?'Pengaturan tersimpan':'Gagal menyimpan pengaturan');load()}
-async function exportCsv(){const rows=(await (await fetch('/api/history?limit=1000')).json()).rows;const head='received_at,temp_mesin,temp_ruangan,hum_ruangan,kipas_ruangan,kipas_mesin,buzzer,modbus_status\n';const csv=head+rows.map(x=>Object.values(x).join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='smartthermo-history.csv';a.click()}
-function showToast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2500)}
-fetch('/api/me').then(r=>r.ok?renderDashboard():renderLogin());
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --bg-image: url('https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?auto=format&fit=crop&w=1600&q=80');
+  --logo-school: 'https://placehold.co/120x120/0d1b2a/ffffff?text=Logo+Sekolah';
+  --logo-dept: 'https://placehold.co/120x120/1d3557/ffffff?text=Logo+Jurusan';
+  --bg-dark: rgba(4, 9, 18, 0.82);
+  --glass: rgba(13, 19, 34, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --primary: #3ec8ff;
+  --secondary: #7ef0c0;
+  --danger: #ff4d5a;
+  --warning: #ffb703;
+  --text: #edf6ff;
+  --muted: #b3c6d9;
+  --card-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+}
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  font-family: 'Inter', sans-serif;
+  background:
+    linear-gradient(rgba(1, 6, 15, 0.7), rgba(1, 6, 15, 0.7)),
+    var(--bg-image) center/cover no-repeat fixed;
+  color: var(--text);
+}
+
+body {
+  min-height: 100vh;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+button, input {
+  font: inherit;
+}
+
+.page-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.glass-panel {
+  background: rgba(12, 19, 33, 0.55);
+  border: 1px solid var(--glass-border);
+  border-radius: 22px;
+  box-shadow: var(--card-shadow);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.login-screen {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 7, 15, 0.42);
+}
+
+.login-card {
+  position: relative;
+  z-index: 1;
+  width: min(92vw, 480px);
+  padding: 28px 24px 22px;
+  animation: fadeInUp 0.8s ease;
+}
+
+.brand-row {
+  display: grid;
+  grid-template-columns: 90px 1fr 90px;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.brand-row img {
+  width: 90px;
+  height: 90px;
+  border-radius: 18px;
+  object-fit: contain;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 8px;
+}
+
+.brand-text {
+  text-align: center;
+}
+
+.mini-label {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.brand-text h1 {
+  margin: 4px 0 0;
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(1.7rem, 2vw, 2.3rem);
+  color: var(--text);
+}
+
+.badge-pill {
+  display: inline-flex;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(62, 200, 255, 0.12);
+  border: 1px solid rgba(62, 200, 255, 0.34);
+  color: var(--primary);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.login-title-wrap {
+  margin: 18px 0 18px;
+}
+
+.login-title-wrap h2 {
+  margin: 10px 0 0;
+  font-size: clamp(1.6rem, 2vw, 2rem);
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.login-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.login-form input {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 14px;
+  padding: 0.98rem 1rem;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.login-form input:focus {
+  border-color: rgba(62, 200, 255, 0.7);
+  box-shadow: 0 0 0 4px rgba(62, 200, 255, 0.12);
+}
+
+.primary-btn, .ghost-btn, .range-btn {
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.primary-btn {
+  background: linear-gradient(135deg, #3ec8ff, #4b6bff);
+  color: #fff;
+  padding: 0.9rem 1rem;
+  font-weight: 700;
+  box-shadow: 0 12px 28px rgba(59, 113, 255, 0.35);
+}
+
+.primary-btn:hover, .ghost-btn:hover, .range-btn:hover {
+  transform: translateY(-1px);
+}
+
+.login-hint {
+  margin: 18px 0 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.dashboard {
+  width: min(1400px, 100%);
+  padding: 22px 20px 32px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 24px;
+}
+
+.brand-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brand-group img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 8px;
+}
+
+.eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.brand-group h1 {
+  margin: 4px 0 0;
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(1.8rem, 2vw, 2.5rem);
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(114, 255, 176, 0.12);
+  color: var(--secondary);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.header-status::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  background: var(--secondary);
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 8px;
+  box-shadow: 0 0 16px rgba(126, 240, 192, 0.8);
+}
+
+.ghost-btn {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0.75rem 1rem;
+  font-weight: 700;
+}
+
+.dashboard-content {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  gap: 18px;
+}
+
+.stat-card {
+  padding: 18px 18px 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::after {
+  content: '';
+  position: absolute;
+  inset: auto -25px -40px auto;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.stat-header, .stat-meta {
+  position: relative;
+  z-index: 1;
+}
+
+.stat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.small-tag {
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(255,255,255,0.06);
+  padding: 5px 8px;
+  border-radius: 999px;
+}
+
+.stat-value {
+  position: relative;
+  z-index: 1;
+  font-size: clamp(2rem, 3vw, 3rem);
+  font-weight: 800;
+  margin: 16px 0 12px;
+  font-family: 'Orbitron', sans-serif;
+}
+
+.stat-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.accent-blue { background: linear-gradient(135deg, rgba(30, 87, 171, 0.78), rgba(11, 18, 29, 0.72)); }
+.accent-teal { background: linear-gradient(135deg, rgba(10, 144, 154, 0.8), rgba(13, 18, 30, 0.72)); }
+.accent-gold { background: linear-gradient(135deg, rgba(157, 105, 3, 0.88), rgba(13, 18, 30, 0.72)); }
+
+.main-grid {
+  display: grid;
+  grid-template-columns: 1.3fr 0.9fr;
+  gap: 18px;
+}
+
+.panel {
+  padding: 18px 18px 20px;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.panel-head h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.chip-warning {
+  background: rgba(255, 183, 3, 0.15);
+  border: 1px solid rgba(255, 183, 3, 0.4);
+  color: #ffd46d;
+}
+
+.chip-info {
+  background: rgba(62, 200, 255, 0.12);
+  border: 1px solid rgba(62, 200, 255, 0.32);
+  color: #8ad7ff;
+}
+
+.gauge-wrap {
+  display: grid;
+  place-items: center;
+  min-height: 280px;
+}
+
+.gauge-ring {
+  width: min(78vw, 260px);
+  aspect-ratio: 1;
+  padding: 20px;
+  border-radius: 50%;
+  background: conic-gradient(from 220deg, #3fe0a5 0 30%, #ffca3a 30% 65%, #ff4d5a 65% 100%);
+  box-shadow: inset 0 0 30px rgba(255,255,255,0.1), 0 18px 35px rgba(0,0,0,0.35);
+  display: grid;
+  place-items: center;
+  animation: pulse 2s ease-in-out infinite alternate;
+}
+
+.gauge-inner {
+  width: 80%;
+  height: 80%;
+  border-radius: 50%;
+  background: rgba(8, 12, 20, 0.82);
+  border: 1px solid rgba(255,255,255,0.07);
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+
+.gauge-value {
+  font-size: clamp(1.8rem, 2.5vw, 2.7rem);
+  font-weight: 800;
+  font-family: 'Orbitron', sans-serif;
+}
+
+.gauge-range {
+  margin-top: 6px;
+  font-size: 0.75rem;
+  color: var(--muted);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.gauge-scale {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.status-list {
+  display: grid;
+  gap: 14px;
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 76px;
+  padding: 7px 10px;
+  background: rgba(95, 161, 255, 0.12);
+  color: #b5d4ff;
+  border-radius: 999px;
+  border: 1px solid rgba(95, 161, 255, 0.2);
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+.buzzer-pill {
+  background: rgba(255, 77, 90, 0.12);
+  border-color: rgba(255, 77, 90, 0.38);
+  color: #ff9aa4;
+  animation: alarmBlink 1s ease-in-out infinite alternate;
+}
+
+.last-update {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  color: var(--muted);
+}
+
+.chart-panel {
+  padding: 18px 18px 10px;
+}
+
+.range-switcher {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.range-btn {
+  background: rgba(255,255,255,0.04);
+  color: var(--text);
+  padding: 0.56rem 0.8rem;
+  font-size: 0.78rem;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.range-btn.active {
+  background: linear-gradient(135deg, #3ec8ff, #4d75ff);
+  border-color: transparent;
+}
+
+.lower-grid {
+  display: grid;
+  grid-template-columns: 0.8fr 1.4fr;
+  gap: 18px;
+}
+
+.threshold-form {
+  display: grid;
+  gap: 14px;
+}
+
+.threshold-form label {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.threshold-form input {
+  width: 100%;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  color: var(--text);
+  padding: 0.8rem 0.9rem;
+}
+
+.table-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.table-toolbar input {
+  flex: 1 1 130px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  color: var(--text);
+  padding: 0.72rem 0.8rem;
+}
+
+.table-wrap {
+  overflow: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(6, 11, 20, 0.2);
+}
+
+th, td {
+  padding: 0.82rem 0.8rem;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+th {
+  background: rgba(255,255,255,0.04);
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+tbody tr:hover {
+  background: rgba(255,255,255,0.03);
+}
+
+.pagination {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 12px;
+  flex-wrap: wrap;
+}
+
+.page-btn {
+  background: rgba(255,255,255,0.04);
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 0.5rem 0.8rem;
+  cursor: pointer;
+}
+
+.page-btn.active {
+  background: linear-gradient(135deg, #3ec8ff, #4b6bff);
+  border-color: transparent;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes alarmBlink {
+  from { opacity: 1; box-shadow: 0 0 0 rgba(255, 77, 90, 0); }
+  to { opacity: 0.7; box-shadow: 0 0 18px rgba(255, 77, 90, 0.75); }
+}
+
+@keyframes pulse {
+  from { transform: scale(1); }
+  to { transform: scale(1.02); }
+}
+
+@media (max-width: 980px) {
+  .stats-grid,
+  .main-grid,
+  .lower-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .nav-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 620px) {
+  .page-shell {
+    padding: 18px;
+  }
+
+  .dashboard {
+    padding: 14px;
+  }
+
+  .brand-row {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .brand-row img {
+    margin: 0 auto;
+  }
+}

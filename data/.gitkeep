@@ -1,0 +1,7 @@
+PORT=3000
+JWT_SECRET=ubah_isi_ini_dengan_string_acak
+IOT_API_KEY=smartthermo-iot-key
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=admin123
+DATA_FILE=./data/store.json
+NODE_ENV=development
